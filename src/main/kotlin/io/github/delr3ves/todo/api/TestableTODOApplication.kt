@@ -8,6 +8,7 @@ import io.github.delr3ves.todo.api.config.TestableTODOConfig
 import io.github.delr3ves.todo.api.resources.ConfigResource
 import io.github.delr3ves.todo.api.resources.TODOListResource
 import io.github.delr3ves.todo.api.resources.UserResource
+import io.github.delr3ves.todo.business.dao.InMemoryUserDao
 
 class TestableTODOApplication : Application<TestableTODOConfig>() {
 
@@ -22,8 +23,10 @@ class TestableTODOApplication : Application<TestableTODOConfig>() {
 
     override fun run(configuration: TestableTODOConfig, environment: Environment) {
         //Resources
-        environment.jersey().register(TODOListResource())
-        environment.jersey().register(UserResource())
+        val userDao = InMemoryUserDao()
+
+        environment.jersey().register(TODOListResource(userDao))
+        environment.jersey().register(UserResource(userDao))
         environment.jersey().register(ConfigResource(configuration))
     }
 
