@@ -1,8 +1,8 @@
 package io.github.delr3ves.todo.api.resources
 
 import com.codahale.metrics.annotation.Timed
-import io.github.delr3ves.todo.business.dao.InMemoryTODOListDao
 import io.github.delr3ves.todo.business.dao.InMemoryUserDao
+import io.github.delr3ves.todo.business.dao.TODOListDaoFactory
 import io.github.delr3ves.todo.business.dao.UserDao
 import io.github.delr3ves.todo.business.model.TODOList
 import io.github.delr3ves.todo.business.model.Task
@@ -13,7 +13,9 @@ import javax.ws.rs.*
 import javax.ws.rs.core.MediaType
 
 @Path("/todo/{userId}")
-class TODOListResource(val userDao: UserDao =InMemoryUserDao()) {
+class TODOListResource(
+        val userDao: UserDao = InMemoryUserDao(),
+        val todoListDaoFactory: TODOListDaoFactory = TODOListDaoFactory()) {
 
     @POST
     @Produces(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML)
@@ -23,7 +25,7 @@ class TODOListResource(val userDao: UserDao =InMemoryUserDao()) {
         val user = userDao.get(userId)
                 ?: throw NotFoundException("User with id $userId does not found")
         list.copy(owner = user, updatedOn = DateTime())
-        InMemoryTODOListDao(user).create(list)
+        todoListDaoFactory.getInstance(user).create(list)
 
         return list
     }
@@ -36,11 +38,11 @@ class TODOListResource(val userDao: UserDao =InMemoryUserDao()) {
     fun addTaskToList(@PathParam("userId") userId: Long, @PathParam("listId") listId: Long, task: Task): Task {
         val user = userDao.get(userId)
                 ?: throw NotFoundException("User with id $userId does not found")
-        val inMemoryTODOListDao = InMemoryTODOListDao(user)
-        val list = inMemoryTODOListDao.find(listId) ?: throw NotFoundException("List with id $listId does not found")
+        val todoListDao = todoListDaoFactory.getInstance(user)
+        val list = todoListDao.find(listId) ?: throw NotFoundException("List with id $listId does not found")
         val tasks = list.tasks?:ArrayList()
         val listToUpdate = list.copy(updatedOn = DateTime.now(), tasks = tasks.plus(task))
-        inMemoryTODOListDao.update(listToUpdate)
+        todoListDao.update(listToUpdate)
         MessageSender.send(user, "Task ${task.id} successfully added!")
         return task
     }
@@ -52,7 +54,7 @@ class TODOListResource(val userDao: UserDao =InMemoryUserDao()) {
     fun get(@PathParam("userId") userId: Long, @PathParam("id") listId: Long): TODOList {
         val user = userDao.get(userId)
                 ?: throw NotFoundException("User with id $userId does not found")
-        return InMemoryTODOListDao(user).find(listId)
+        return todoListDaoFactory.getInstance(user).find(listId)
                 ?: throw NotFoundException("List with id $listId does not found")
     }
 
@@ -62,6 +64,6 @@ class TODOListResource(val userDao: UserDao =InMemoryUserDao()) {
     fun findAll(@PathParam("userId") userId: Long): Collection<TODOList> {
         val user = userDao.get(userId)
                 ?: throw NotFoundException("User with id $userId does not found")
-        return InMemoryTODOListDao(user).findAll()
+        return todoListDaoFactory.getInstance(user).findAll()
     }
 }
